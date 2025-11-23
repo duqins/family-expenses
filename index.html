@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Family Expenses">
+    <title>Family Expense Tracker</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="./icon-192.svg">
+    <link rel="apple-touch-icon" href="./icon-192.svg">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+            min-height: 100vh;
+        }
+        #root {
+            min-height: 100vh;
+        }
+        /* Loading state */
+        .app-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+        }
+        .app-loading::after {
+            content: "Loading...";
+            font-size: 24px;
+            color: #4F46E5;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="root" class="app-loading"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Lucide Icons as inline SVG components
+        const Plus = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        );
+        
+        const Trash2 = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        );
+        
+        const ShoppingCart = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        );
+        
+        const LogOut = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        );
+        
+        const Calendar = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        );
+        
+        const DollarSign = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        );
+        
+        const TrendingDown = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+        );
+        
+        const MessageSquare = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        );
+        
+        const BarChart3 = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        );
+        
+        const User = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        );
+
+        function FamilyExpenseTracker() {
+          const [expenses, setExpenses] = useState([]);
+          const [users, setUsers] = useState([]);
+          const [currentUser, setCurrentUser] = useState(null);
+          const [isAdmin, setIsAdmin] = useState(false);
+          
+          const [showAuth, setShowAuth] = useState(true);
+          const [authMode, setAuthMode] = useState('login');
+          const [username, setUsername] = useState('');
+          const [password, setPassword] = useState('');
+          const [confirmPassword, setConfirmPassword] = useState('');
+          const [authError, setAuthError] = useState('');
+          const [formError, setFormError] = useState('');
+          
+          const [amount, setAmount] = useState('');
+          const [category, setCategory] = useState('Groceries');
+          const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+          const [comment, setComment] = useState('');
+          const [viewMode, setViewMode] = useState('daily');
+          
+          const ADMIN_PASSWORD = 'sultannaser99';
+          const categories = ['Groceries', 'Dining Out', 'Transportation', 'Utilities', 'Entertainment', 'Healthcare', 'Shopping', 'Education', 'Bills', 'Other'];
+          const quickAmounts = [10, 20, 50, 100, 200];
+
+          useEffect(() => {
+            const savedExpenses = localStorage.getItem('familyExpenses');
+            const savedUsers = localStorage.getItem('familyUsers');
+            if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
+            if (savedUsers) setUsers(JSON.parse(savedUsers));
+          }, []);
+
+          useEffect(() => {
+            localStorage.setItem('familyExpenses', JSON.stringify(expenses));
+          }, [expenses]);
+
+          useEffect(() => {
+            localStorage.setItem('familyUsers', JSON.stringify(users));
+          }, [users]);
+
+          const handleRegister = () => {
+            setAuthError('');
+            if (!username || !password || !confirmPassword) {
+              setAuthError('⚠️ Please fill in all fields');
+              return;
+            }
+            if (username.length < 3) {
+              setAuthError('⚠️ Username must be at least 3 characters');
+              return;
+            }
+            if (password.length < 4) {
+              setAuthError('⚠️ Password must be at least 4 characters');
+              return;
+            }
+            if (password !== confirmPassword) {
+              setAuthError('⚠️ Passwords do not match');
+              return;
+            }
+            if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+              setAuthError('⚠️ Username already exists. Please choose another.');
+              return;
+            }
+
+            const newUser = {
+              id: Date.now(),
+              username: username,
+              password: password,
+              createdAt: new Date().toISOString()
+            };
+
+            setUsers([...users, newUser]);
+            setUsername('');
+            setPassword('');
+            setConfirmPassword('');
+            setAuthError('');
+            setAuthMode('login');
+            setTimeout(() => setAuthError('✅ Account created! Please login.'), 100);
+          };
+
+          const handleLogin = () => {
+            setAuthError('');
+            if (!username || !password) {
+              setAuthError('⚠️ Please enter username and password');
+              return;
+            }
+
+            if (username.toLowerCase() === 'admin' && password === ADMIN_PASSWORD) {
+              setIsAdmin(true);
+              setCurrentUser({ username: 'Admin', id: 'admin' });
+              setShowAuth(false);
+              setUsername('');
+              setPassword('');
+              setAuthError('');
+              return;
+            }
+
+            const user = users.find(u => 
+              u.username.toLowerCase() === username.toLowerCase() && 
+              u.password === password
+            );
+
+            if (user) {
+              setCurrentUser(user);
+              setIsAdmin(false);
+              setShowAuth(false);
+              setUsername('');
+              setPassword('');
+              setAuthError('');
+            } else {
+              setAuthError('⚠️ Invalid username or password. Please try again.');
+            }
+          };
+
+          const handleLogout = () => {
+            setCurrentUser(null);
+            setIsAdmin(false);
+            setShowAuth(true);
+            setUsername('');
+            setPassword('');
+          };
+
+          const addExpense = () => {
+            setFormError('');
+            if (!amount) {
+              setFormError('⚠️ Please enter an amount');
+              return;
+            }
+            if (parseFloat(amount) <= 0) {
+              setFormError('⚠️ Amount must be greater than 0');
+              return;
+            }
+            if (parseFloat(amount) > 1000000) {
+              setFormError('⚠️ Amount seems too large. Please check.');
+              return;
+            }
+
+            const newExpense = {
+              id: Date.now(),
+              amount: parseFloat(amount),
+              category,
+              userId: currentUser.id,
+              username: currentUser.username,
+              date: selectedDate,
+              comment: comment.trim(),
+              timestamp: new Date().toISOString()
+            };
+
+            setExpenses([newExpense, ...expenses]);
+            setAmount('');
+            setComment('');
+            setFormError('');
+            setFormError('✅ Expense added successfully!');
+            setTimeout(() => setFormError(''), 2000);
+          };
+
+          const deleteExpense = (id) => {
+            if (window.confirm('Are you sure you want to delete this expense?')) {
+              setExpenses(expenses.filter(exp => exp.id !== id));
+            }
+          };
+
+          const getUserExpenses = () => {
+            if (isAdmin) return expenses;
+            return expenses.filter(exp => exp.userId === currentUser.id);
+          };
+
+          const getFilteredExpenses = () => {
+            const userExpenses = getUserExpenses();
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            const todayString = new Date().toISOString().split('T')[0];
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(today.getDate() - 6);
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            switch(viewMode) {
+              case 'daily':
+                return userExpenses.filter(exp => exp.date === todayString);
+              case 'weekly':
+                return userExpenses.filter(exp => {
+                  const expDate = new Date(exp.date);
+                  return expDate >= sevenDaysAgo && expDate <= today;
+                });
+              case 'monthly':
+                return userExpenses.filter(exp => {
+                  const expDate = new Date(exp.date);
+                  return expDate >= startOfMonth && expDate <= today;
+                });
+              default:
+                return userExpenses;
+            }
+          };
+
+          const calculateTotal = (expenseList) => {
+            return expenseList.reduce((sum, exp) => sum + exp.amount, 0);
+          };
+
+          const getCategoryBreakdown = (expenseList) => {
+            const breakdown = {};
+            expenseList.forEach(exp => {
+              breakdown[exp.category] = (breakdown[exp.category] || 0) + exp.amount;
+            });
+            return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+          };
+
+          const getMonthlyTotals = () => {
+            const monthlyData = {};
+            expenses.forEach(exp => {
+              const date = new Date(exp.date);
+              const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              if (!monthlyData[monthYear]) {
+                monthlyData[monthYear] = { total: 0, byUser: {}, byCategory: {} };
+              }
+              monthlyData[monthYear].total += exp.amount;
+              monthlyData[monthYear].byUser[exp.username] = 
+                (monthlyData[monthYear].byUser[exp.username] || 0) + exp.amount;
+              monthlyData[monthYear].byCategory[exp.category] = 
+                (monthlyData[monthYear].byCategory[exp.category] || 0) + exp.amount;
+            });
+            return monthlyData;
+          };
+
+          const getYearlyTotals = () => {
+            const yearlyData = {};
+            expenses.forEach(exp => {
+              const year = new Date(exp.date).getFullYear();
+              if (!yearlyData[year]) {
+                yearlyData[year] = { total: 0, byUser: {}, byCategory: {} };
+              }
+              yearlyData[year].total += exp.amount;
+              yearlyData[year].byUser[exp.username] = 
+                (yearlyData[year].byUser[exp.username] || 0) + exp.amount;
+              yearlyData[year].byCategory[exp.category] = 
+                (yearlyData[year].byCategory[exp.category] || 0) + exp.amount;
+            });
+            return yearlyData;
+          };
+
+          const getUserTotals = () => {
+            const userData = {};
+            expenses.forEach(exp => {
+              userData[exp.username] = (userData[exp.username] || 0) + exp.amount;
+            });
+            return Object.entries(userData).sort((a, b) => b[1] - a[1]);
+          };
+
+          const filteredExpenses = getFilteredExpenses();
+          const totalSpent = calculateTotal(filteredExpenses);
+          const categoryBreakdown = getCategoryBreakdown(filteredExpenses);
+
+          if (showAuth) {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="bg-indigo-600 p-4 rounded-xl">
+                      <ShoppingCart size={40} className="text-white" />
+                    </div>
+                  </div>
+                  
+                  <h1 className="text-3xl font-bold text-gray-800 text-center mb-2">
+                    Family Expense Tracker
+                  </h1>
+                  <p className="text-gray-500 text-center mb-6">
+                    {authMode === 'login' ? 'Login to your account' : 'Create a new account'}
+                  </p>
+
+                  <div className="flex gap-2 mb-6">
+                    <button
+                      onClick={() => setAuthMode('login')}
+                      className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                        authMode === 'login' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => setAuthMode('register')}
+                      className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                        authMode === 'register' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      Register
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {authError && (
+                      <div className={`p-4 rounded-xl ${
+                        authError.includes('✅') 
+                          ? 'bg-green-50 border-2 border-green-500 text-green-700' 
+                          : 'bg-red-50 border-2 border-red-500 text-red-700'
+                      }`}>
+                        <p className="font-medium text-center">{authError}</p>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => { setUsername(e.target.value); setAuthError(''); }}
+                        onKeyPress={(e) => e.key === 'Enter' && (authMode === 'login' ? handleLogin() : handleRegister())}
+                        placeholder="Enter username"
+                        className={`w-full p-3 border-2 rounded-xl focus:border-indigo-500 focus:outline-none ${
+                          authError && !authError.includes('✅') ? 'border-red-300' : 'border-gray-200'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setAuthError(''); }}
+                        onKeyPress={(e) => e.key === 'Enter' && (authMode === 'login' ? handleLogin() : handleRegister())}
+                        placeholder="Enter password"
+                        className={`w-full p-3 border-2 rounded-xl focus:border-indigo-500 focus:outline-none ${
+                          authError && !authError.includes('✅') ? 'border-red-300' : 'border-gray-200'
+                        }`}
+                      />
+                    </div>
+
+                    {authMode === 'register' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => { setConfirmPassword(e.target.value); setAuthError(''); }}
+                          onKeyPress={(e) => e.key === 'Enter' && handleRegister()}
+                          placeholder="Confirm password"
+                          className={`w-full p-3 border-2 rounded-xl focus:border-indigo-500 focus:outline-none ${
+                            authError && !authError.includes('✅') ? 'border-red-300' : 'border-gray-200'
+                          }`}
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={authMode === 'login' ? handleLogin : handleRegister}
+                      className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg"
+                    >
+                      {authMode === 'login' ? 'Login' : 'Create Account'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+              <div className="max-w-6xl mx-auto">
+                <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-indigo-600 p-3 rounded-xl">
+                        <ShoppingCart size={28} className="text-white" />
+                      </div>
+                      <div>
+                        <h1 className="text-3xl font-bold text-gray-800">
+                          {isAdmin ? '🔐 Admin Dashboard' : 'My Expenses'}
+                        </h1>
+                        <p className="text-gray-500">Welcome, <strong>{currentUser.username}</strong></p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">
+                          {viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'Last 7 Days' : 'This Month'}
+                        </p>
+                        <p className="text-3xl font-bold text-indigo-600">AED {totalSpent.toFixed(2)}</p>
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-all"
+                      >
+                        <LogOut size={18} />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {['daily', 'weekly', 'monthly'].map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setViewMode(mode)}
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium capitalize transition-all ${
+                          viewMode === mode ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {!isAdmin && (
+                  <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <Plus size={24} className="text-indigo-600" />
+                      Add New Expense
+                    </h2>
+
+                    {formError && (
+                      <div className={`p-3 rounded-xl mb-4 ${
+                        formError.includes('✅') 
+                          ? 'bg-green-50 border-2 border-green-500 text-green-700' 
+                          : 'bg-red-50 border-2 border-red-500 text-red-700'
+                      }`}>
+                        <p className="font-medium text-center text-sm">{formError}</p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                          <Calendar size={16} /> Date
+                        </label>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                          <TrendingDown size={16} /> Category
+                        </label>
+                        <select
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none appearance-none bg-white cursor-pointer"
+                        >
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                          <DollarSign size={16} /> Amount (AED)
+                        </label>
+                        <input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => { setAmount(e.target.value); setFormError(''); }}
+                          placeholder="0.00"
+                          step="0.01"
+                          className={`w-full p-3 border-2 rounded-xl focus:border-indigo-500 focus:outline-none text-lg ${
+                            formError && !formError.includes('✅') ? 'border-red-300' : 'border-gray-200'
+                          }`}
+                        />
+                        
+                        <div className="flex gap-2 mt-2">
+                          {quickAmounts.map(amt => (
+                            <button
+                              key={amt}
+                              onClick={() => setAmount(amt.toString())}
+                              className="flex-1 py-2 px-3 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-medium text-sm transition-all"
+                            >
+                              {amt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                          <MessageSquare size={16} /> Note (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="What did you buy? (e.g., Groceries at Carrefour)"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <button
+                          onClick={addExpense}
+                          className="w-full bg-indigo-600 text-white py-3 px-6 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <Plus size={20} />
+                          Add Expense
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {categoryBreakdown.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <BarChart3 size={24} className="text-indigo-600" />
+                      Category Breakdown
+                    </h2>
+                    <div className="space-y-3">
+                      {categoryBreakdown.map(([cat, amount]) => {
+                        const percentage = (amount / totalSpent) * 100;
+                        return (
+                          <div key={cat}>
+                            <div className="flex justify-between mb-1">
+                              <span className="font-medium text-gray-700">{cat}</span>
+                              <div className="text-right">
+                                <span className="font-bold text-indigo-600">AED {amount.toFixed(2)}</span>
+                                <span className="text-sm text-gray-500 ml-2">({percentage.toFixed(1)}%)</span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div
+                                className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-3 rounded-full transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-2xl shadow-xl p-6">
+                  <h2 className="text-xl font-bold text-gray-800 mb-4">
+                    {isAdmin ? '📋 All Expenses' : 'Recent Expenses'}
+                  </h2>
+                  
+                  {filteredExpenses.length === 0 ? (
+                    <div className="text-center py-12">
+                      <ShoppingCart size={48} className="mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-500">No expenses recorded yet</p>
+                      {!isAdmin && <p className="text-sm text-gray-400 mt-2">Add your first expense above!</p>}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredExpenses.map(expense => (
+                        <div
+                          key={expense.id}
+                          className="flex items-start justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all border-2 border-transparent hover:border-indigo-200"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="font-bold text-xl text-gray-800">
+                                AED {expense.amount.toFixed(2)}
+                              </span>
+                              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                                {expense.category}
+                              </span>
+                              {isAdmin && (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                                  {expense.username}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {expense.comment && (
+                              <div className="flex items-start gap-2 mb-2">
+                                <MessageSquare size={16} className="text-gray-400 mt-0.5" />
+                                <p className="text-sm text-gray-600 italic">"{expense.comment}"</p>
+                              </div>
+                            )}
+                            
+                            <div className="flex gap-3 text-sm text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Calendar size={14} /> {new Date(expense.date).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {!isAdmin && (
+                            <button
+                              onClick={() => deleteExpense(expense.id)}
+                              className="ml-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Remove loading class and render app
+        const rootElement = document.getElementById('root');
+        rootElement.classList.remove('app-loading');
+        
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<FamilyExpenseTracker />);
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registered successfully:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
