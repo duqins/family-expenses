@@ -250,6 +250,7 @@
 
           const getUserExpenses = () => {
             if (isAdmin) return expenses;
+            if (!currentUser) return [];  
             return expenses.filter(exp => exp.userId === currentUser.id);
           };
 
